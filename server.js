@@ -1,38 +1,50 @@
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { loadEnv } from "./src/env.js";
+import { run, attest } from "./src/kernel.js";
 
-// Serves the harness so it can run lights-out on an Akash lease. Each GET runs
-// the loop fresh and returns the trace. /health is a plain liveness check.
+// Hosts the cockpit. Runs locally and lights-out on an Akash lease.
+//   GET  /            → the cockpit UI
+//   GET  /api/run     → runs the loop to the attestation point, returns events
+//   POST /api/attest  → the human attests; the denied action runs as operator
 
 const PORT = process.env.PORT || 8080;
-const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
-const esc = (s) => s.replace(/[<&]/g, (c) => ({ "<": "&lt;", "&": "&amp;" })[c]);
+const env = loadEnv();
+let session = null; // single-user demo state
 
-createServer((req, res) => {
-  if (req.url === "/health") {
-    res.writeHead(200, { "content-type": "text/plain" });
-    return res.end("ok");
+const cockpit = () => readFileSync(new URL("./public/cockpit.html", import.meta.url), "utf8");
+const json = (res, obj) => {
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify(obj));
+};
+
+createServer(async (req, res) => {
+  try {
+    if (req.url === "/health") {
+      res.writeHead(200, { "content-type": "text/plain" });
+      return res.end("ok");
+    }
+    if (req.url === "/" || req.url === "/index.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(cockpit());
+    }
+    if (req.url === "/api/run") {
+      const events = [];
+      const r = await run(env, (e) => events.push(e));
+      session = r.pending ? { state: r.state, pending: r.pending, cycle: r.cycle } : null;
+      return json(res, { events, pending: !!r.pending });
+    }
+    if (req.url === "/api/attest" && req.method === "POST") {
+      if (!session) return json(res, { events: [], error: "nothing is awaiting attestation" });
+      const events = [];
+      await attest(env, session, (e) => events.push(e));
+      session = null;
+      return json(res, { events, done: true });
+    }
+    res.writeHead(404, { "content-type": "text/plain" });
+    res.end("not found");
+  } catch (err) {
+    res.writeHead(500, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: String(err.message || err) }));
   }
-
-  const child = spawn("node", ["index.js"], { cwd: process.cwd() });
-  let out = "";
-  child.stdout.on("data", (d) => (out += d));
-  child.stderr.on("data", (d) => (out += d));
-  child.on("close", () => {
-    const body = `<!doctype html><meta charset="utf-8">
-<title>Cold Open — live on Akash</title>
-<style>
-  body{background:#101413;color:#e8edea;font:14px/1.55 ui-monospace,Menlo,Consolas,monospace;margin:0;padding:30px}
-  h1{font:600 22px/1 ui-serif,"Iowan Old Style",Georgia,serif;color:#e9a542;margin:0 0 5px}
-  .s{color:#78857f;margin-bottom:22px}
-  pre{white-space:pre-wrap;word-break:break-word}
-  .b{color:#5fa88c}
-</style>
-<h1>Cold Open</h1>
-<div class="s">a hackathon-prep harness &middot; running lights-out on Akash &middot; ${new Date().toISOString()}</div>
-<pre>${esc(stripAnsi(out))}</pre>
-<div class="s">refresh to run the loop again</div>`;
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(body);
-  });
-}).listen(PORT, () => console.log(`cold-open server listening on :${PORT}`));
+}).listen(PORT, () => console.log(`cold-open cockpit → http://localhost:${PORT}`));

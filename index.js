@@ -1,22 +1,10 @@
-import { readFileSync } from "node:fs";
+import { loadEnv } from "./src/env.js";
 import { run } from "./src/kernel.js";
+import { cliEmit } from "./src/wall.js";
 
-// tiny zero-dependency .env loader — real env wins, .env fills the gaps
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    const txt = readFileSync(new URL("./.env", import.meta.url), "utf8");
-    for (const raw of txt.split("\n")) {
-      const m = raw.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-      if (m && !env[m[1]]) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  } catch {
-    /* no .env — offline mode */
-  }
-  return env;
+const env = loadEnv();
+const r = await run(env, cliEmit);
+if (r.pending) {
+  console.log("\x1b[38;5;244m  Awaiting human attestation. Open the cockpit to attest and submit:\x1b[0m");
+  console.log("\x1b[38;5;179m  node server.js  →  http://localhost:8080\x1b[0m\n");
 }
-
-run(loadEnv()).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
