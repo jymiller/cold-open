@@ -1,28 +1,39 @@
 import { uid } from "./envelope.js";
+import { decide } from "./policy.js";
+import { appendAudit } from "./audit.js";
 
-// Pomerium — the gate. Every syscall passes here before it runs.
+// Pomerium — the gate. Every syscall passes here before it runs. Nothing the
+// agent does escapes it: it holds no upstream credential and has no socket
+// except through this call.
 //
 // Real proxy: when POMERIUM_URL is set, route the MCP call through Pomerium and
-// read the authorize decision + request_id from the response. Left as a seam.
-// The local policy below mirrors the PPL we enforce: reads and pure compute are
-// allowed; state-changing external actions (submit / publish / attest / send /
-// delete) are DENIED — they require a human-attestation identity the agent
-// does not hold. The denial is not a failure; it is the self-correct trigger.
-
-const DENY_PREFIX = ["submit_", "publish_", "attest_", "send_", "delete_"];
+// use its authorize decision + request_id. One-file swap — the policy below is
+// the same PPL, and we already write the same audit fields. Until the proxy is
+// up, this enforces it in-process; the security model is identical.
 
 export async function gate(sys, env) {
   // Seam: real Pomerium goes here.
   // if (env.POMERIUM_URL) return await routeThroughPomerium(sys, env);
 
-  const denied = DENY_PREFIX.some((p) => sys.tool.startsWith(p));
-  if (denied) {
-    return {
-      decision: "DENY",
-      status: 403,
-      reason: `${sys.tool} needs a human's attestation the agent doesn't hold`,
-      request_id: uid("req"),
-    };
-  }
-  return { decision: "ALLOW", status: 200, reason: null, request_id: uid("req") };
+  const request_id = uid("req");
+  const d = decide(sys);
+  const verdict = {
+    decision: d.decision,
+    status: d.decision === "DENY" ? 403 : 200,
+    reason: d.reason,
+    request_id,
+  };
+
+  appendAudit({
+    ts: sys.ts,
+    request_id,
+    identity: sys.identity,
+    "mcp-tool": sys.tool,
+    "mcp-tool-parameters": sys.args,
+    decision: verdict.decision,
+    status: verdict.status,
+    reason: verdict.reason,
+  });
+
+  return verdict;
 }

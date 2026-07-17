@@ -1,5 +1,7 @@
 // The wall — a legible trace of the loop, for the demo and the video.
 
+import { auditCount } from "./audit.js";
+
 const e = (n) => `\x1b[${n}m`;
 const R = e(0),
   B = e(1),
@@ -68,7 +70,7 @@ export function receipt(state, startBudget) {
         } ${grey}(naive ${ex.naive}x green — wrong)  · the payload${R}`
       : "",
     `cognition spend ~$${spent}   ${grey}· AkashML${R}`,
-    `every action authorized before it ran   ${grey}· Pomerium audit${R}`,
+    `${auditCount()} actions authorized before they ran   ${grey}· Pomerium audit (audit.jsonl)${R}`,
   ].filter(Boolean);
 
   console.log(`${B}${amber}╔══ HALTED — awaiting human attestation ════════════════════╗${R}`);
