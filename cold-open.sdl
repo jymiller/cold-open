@@ -1,0 +1,36 @@
+version: "2.0"
+services:
+  web:
+    image: node:22
+    command:
+      - sh
+      - -c
+      - "git clone --depth 1 https://github.com/jymiller/cold-open /app && cd /app && node server.js"
+    env:
+      - PORT=8080
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 100000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
