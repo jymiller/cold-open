@@ -4,6 +4,11 @@ A self-directing agent that reads a hackathon's corpus and **builds the submissi
 
 Built for the Loop Engineering Hackathon. It runs a loop — **plan → act → observe → self-correct** — across the build cycle, and every action passes a policy gate *before* it runs.
 
+## Links
+
+- **Devpost:** https://devpost.com/software/cold-open-a-harness-walks-into-a-hackathon-and-submits
+- **Demo video:** https://www.youtube.com/watch?v=RyuWErIZMGw
+
 ## Run it
 
 ```bash
