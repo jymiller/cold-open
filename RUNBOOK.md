@@ -87,7 +87,7 @@ Copy `.env.example` → `.env` and fill what you have. Any blank key → that to
 | Var | Purpose | Notes |
 |---|---|---|
 | `AKASHML_API_KEY` | AkashML inference | **must start with `akml-`**; from akashml.com |
-| `AKASHML_MODEL` | model id | run `npm run models` to list; paste one verbatim |
+| `AKASHML_MODEL` | model id | run `npm run models` to list; paste one **id only** — no inline `#` comment (the loader doesn't strip it) |
 | `METAVIEW_API_KEY` | Metaview MCP | from `my.metaview.app/settings/mcp` |
 | `METAVIEW_MCP_URL` | Metaview endpoint | defaults to `https://mcp.metaview.ai/mcp` |
 | `POMERIUM_URL` | real Pomerium proxy | blank = in-process policy (same rules) |
@@ -147,6 +147,7 @@ In the cockpit: **RUN LOOP** → 6 cycles → `submit_entry` DENY 403 → **ATTE
 | `EADDRINUSE` on `node server.js` | Port 8080 taken. Find it: `lsof -iTCP:8080 -sTCP:LISTEN`; kill the PID, or run with `PORT=8081 node server.js`. |
 | `npm run models` → "keys should start with akml-" | Wrong key type — that's an Akash **Console** key, not an **AkashML** key. Get an `akml-` key from akashml.com. |
 | Cockpit shows `offline` when you expect `live` | Key/model missing or unreadable in the active env. Local: check `.env` + restart. Lease: check the SDL `env:` + Update. |
+| `npm run models` OK but loop still offline / AkashML 404 | `AKASHML_MODEL` has a trailing inline `# comment` — the `.env` loader (`src/env.js`) does **not** strip inline comments, so the model id is invalid. Put **only** the id on the line. |
 | Akash Update → "Storage resources mismatch" | You changed resources on an in-place update. Match the existing lease specs (§8) or redeploy. |
 | Lease serves "Hello from Akash" | The lease is running a template, not this app. Update the SDL to this app's SDL (§8). |
 | Pushed to `main` but lease unchanged | Expected — the lease pins the code from deploy/update time. Update the deployment to re-clone (§5). |
