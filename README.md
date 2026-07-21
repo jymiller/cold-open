@@ -71,7 +71,7 @@ npm run models          # lists AkashML model ids — paste one (id only, no com
 node index.js
 ```
 
-See [RUNBOOK.md](RUNBOOK.md) for local vs. Akash operation, deploying, and troubleshooting.
+See [RUNBOOK.md](RUNBOOK.md) for local vs. Akash operation, deploying, and troubleshooting — and [AKASH.md](AKASH.md) for Akash deployment notes, the Console-vs-AkashML key model, cost/auto-top-up, and the Akash Skill.
 
 ## What you'll see
 
